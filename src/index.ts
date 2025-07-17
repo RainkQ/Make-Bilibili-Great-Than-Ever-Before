@@ -247,8 +247,7 @@ import forceEnable4K from './modules/force-enable-4k';
       for (const onXhrResponse of onXhrResponseHooks) {
         try {
           finalResponse = onXhrResponse(xhrDetails.method, xhrDetails.url, finalResponse, this);
-        }
-        catch (e) {
+        } catch (e) {
           logger.error('Failed to call onXhrResponse', e);
         }
       }
