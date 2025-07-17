@@ -19,7 +19,7 @@ import disableAV1 from './modules/disable-av1';
 import defuseStorage from './modules/defuse-storage';
 import forceEnable4K from './modules/force-enable-4k';
 
-; ((unsafeWindow) => {
+((unsafeWindow) => {
   const modules: MakeBilibiliGreatThanEverBeforeModule[] = [
     defuseStorage,
     defuseSpyware,
@@ -247,7 +247,8 @@ import forceEnable4K from './modules/force-enable-4k';
       for (const onXhrResponse of onXhrResponseHooks) {
         try {
           finalResponse = onXhrResponse(xhrDetails.method, xhrDetails.url, finalResponse, this);
-        } catch (e) {
+        }
+        catch (e) {
           logger.error('Failed to call onXhrResponse', e);
         }
       }
