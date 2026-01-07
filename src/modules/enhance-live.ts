@@ -35,25 +35,43 @@ const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
 
       const livePlayer = (unsafeWindow as any).livePlayer;
 
-      // get initial pathname of video source and number of highest quality
-      const initialPathname = new URL(
-        livePlayer.getPlayerInfo().playurl
-      ).pathname;
-      const highestQualityNumber
-        = livePlayer.getPlayerInfo().qualityCandidates[0].qn;
+      // respect manual quality changes by the user
+      const originalSwitchQuality = livePlayer.switchQuality.bind(livePlayer);
+      let isScriptSwitch = false;
+      let manualOverride = false;
+      livePlayer.switchQuality = (qn: number) => {
+        // if this call is NOT triggered by our script, treat it as user's choice
+        if (!isScriptSwitch) {
+          manualOverride = true;
+        }
+        return originalSwitchQuality(qn);
+      };
 
-      // switch quality
+      // track stream identity to reset on new streams
+      let lastPathname: string = new URL(livePlayer.getPlayerInfo().playurl).pathname;
+
+      // periodically ensure highest quality only when not manually overridden
       setInterval(() => {
-        const currentPathname = new URL(
-          livePlayer.getPlayerInfo().playurl
-        ).pathname;
-        const currentQualityNumber
-          = livePlayer.getPlayerInfo().quality;
-        if (
-          currentPathname === initialPathname
-          || currentQualityNumber !== highestQualityNumber
-        ) {
-          livePlayer.switchQuality(highestQualityNumber);
+        const info = livePlayer.getPlayerInfo?.();
+        if (!info || !info.playurl) return;
+
+        const currentPathname = new URL(info.playurl).pathname;
+        if (currentPathname !== lastPathname) {
+          // stream source changed (e.g., reconnect, new line)
+          lastPathname = currentPathname;
+          manualOverride = false; // allow auto-adjust again for the new stream
+        }
+
+        const highestQualityNumber: number | undefined = info.qualityCandidates?.[0]?.qn;
+        const currentQualityNumber: number | undefined = info.quality;
+
+        if (!manualOverride && highestQualityNumber && currentQualityNumber !== highestQualityNumber) {
+          isScriptSwitch = true;
+          try {
+            originalSwitchQuality(highestQualityNumber);
+          } finally {
+            isScriptSwitch = false;
+          }
         }
       }, 1000);
     })();
