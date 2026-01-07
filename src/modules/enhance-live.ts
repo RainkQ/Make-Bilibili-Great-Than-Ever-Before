@@ -33,42 +33,46 @@ const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
         }, 1000);
       });
 
-      const livePlayer = (unsafeWindow as any).livePlayer;
-
-      // respect manual quality changes by the user
-      const originalSwitchQuality = livePlayer.switchQuality.bind(livePlayer);
-      let isScriptSwitch = false;
       let manualOverride = false;
-      livePlayer.switchQuality = (qn: number) => {
-        // if this call is NOT triggered by our script, treat it as user's choice
-        if (!isScriptSwitch) {
-          manualOverride = true;
-        }
-        return originalSwitchQuality(qn);
+      let isScriptSwitch = false;
+
+      // wrap switchQuality and keep it wrapped even if player resets
+      const WRAPPED = Symbol('mbgteb-live-switch-wrapped');
+      const wrapLivePlayerSwitch = () => {
+        const livePlayer = (unsafeWindow as any).livePlayer;
+        if (!livePlayer || !livePlayer.switchQuality) return null as any;
+        if (livePlayer[WRAPPED]) return livePlayer;
+        const originalSwitchQuality = livePlayer.switchQuality.bind(livePlayer);
+        livePlayer.switchQuality = (qn: number) => {
+          if (!isScriptSwitch) {
+            manualOverride = true;
+          }
+          return originalSwitchQuality(qn);
+        };
+        // mark as wrapped and keep a back-reference for later calls
+        Object.defineProperty(livePlayer, WRAPPED, { value: true });
+        Object.defineProperty(livePlayer, '__mbgteb_originalSwitchQuality', { value: originalSwitchQuality });
+        return livePlayer;
       };
 
-      // track stream identity to reset on new streams
-      let lastPathname: string = new URL(livePlayer.getPlayerInfo().playurl).pathname;
+      // ensure wrapping at start
+      wrapLivePlayerSwitch();
 
       // periodically ensure highest quality only when not manually overridden
       setInterval(() => {
-        const info = livePlayer.getPlayerInfo?.();
+        const livePlayer = wrapLivePlayerSwitch() || (unsafeWindow as any).livePlayer;
+        const info = livePlayer?.getPlayerInfo?.();
         if (!info || !info.playurl) return;
-
-        const currentPathname = new URL(info.playurl).pathname;
-        if (currentPathname !== lastPathname) {
-          // stream source changed (e.g., reconnect, new line)
-          lastPathname = currentPathname;
-          manualOverride = false; // allow auto-adjust again for the new stream
-        }
 
         const highestQualityNumber: number | undefined = info.qualityCandidates?.[0]?.qn;
         const currentQualityNumber: number | undefined = info.quality;
 
         if (!manualOverride && highestQualityNumber && currentQualityNumber !== highestQualityNumber) {
+          // use preserved original if available
+          const call = (livePlayer as any).__mbgteb_originalSwitchQuality ?? livePlayer.switchQuality.bind(livePlayer);
           isScriptSwitch = true;
           try {
-            originalSwitchQuality(highestQualityNumber);
+            call(highestQualityNumber);
           } finally {
             isScriptSwitch = false;
           }
