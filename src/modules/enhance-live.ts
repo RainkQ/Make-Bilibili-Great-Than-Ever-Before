@@ -35,6 +35,7 @@ const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
 
       let manualOverride = false;
       let isScriptSwitch = false;
+      let lastUserInteraction = 0;
 
       // wrap switchQuality and keep it wrapped even if player resets
       const WRAPPED = Symbol('mbgteb-live-switch-wrapped');
@@ -58,6 +59,23 @@ const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
       // ensure wrapping at start
       wrapLivePlayerSwitch();
 
+      // record user interactions in/around the player to infer manual operations
+      const markInteraction = () => { lastUserInteraction = Date.now(); };
+      const interactionEvents = ['pointerdown', 'mousedown', 'touchstart', 'keydown'];
+      interactionEvents.forEach((evt) => {
+        window.addEventListener(evt as any, (e) => {
+          try {
+            const target = e.target as Element | null;
+            if (!target) return;
+            // limit to events happening within the web player container to avoid false positives
+            const inPlayer = !!target.closest?.('.web-player,.player,.player-ctnr,.bilibili-live-player,.player-container');
+            if (inPlayer) markInteraction();
+          } catch {
+            // ignore
+          }
+        }, { capture: true, passive: true });
+      });
+
       // periodically ensure highest quality only when not manually overridden
       setInterval(() => {
         const livePlayer = wrapLivePlayerSwitch() || (unsafeWindow as any).livePlayer;
@@ -66,6 +84,12 @@ const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
 
         const highestQualityNumber: number | undefined = info.qualityCandidates?.[0]?.qn;
         const currentQualityNumber: number | undefined = info.quality;
+
+        // if a recent user interaction occurred, treat as manual and stop auto override
+        if (!manualOverride && Date.now() - lastUserInteraction < 3000) {
+          manualOverride = true;
+          return;
+        }
 
         if (!manualOverride && highestQualityNumber && currentQualityNumber !== highestQualityNumber) {
           // use preserved original if available
