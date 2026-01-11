@@ -3,6 +3,7 @@ import { createRetrieKeywordFilter } from 'foxts/retrie';
 import { logger } from '../logger';
 import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
 import { defineReadonlyProperty } from '../utils/define-readonly-property';
+import { configManager } from '../utils/config-manager';
 
 const rBackupCdn = /(?:up|cn-)[\w-]+\.bilivideo\.com/g;
 
@@ -42,20 +43,25 @@ const isP2PCDN = createRetrieKeywordFilter([
 ]);
 
 const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'no-p2p',
   name: 'no-p2p',
+  defaultEnabled: false,
+  alwaysRun: true,
   description: '防止叔叔用 P2P CDN 省下纸钱',
   any({ onXhrOpen, onBeforeFetch, onXhrResponse }) {
-    class MockPCDNLoader { }
+    if (configManager.isEnabled(noP2P)) {
+      class MockPCDNLoader { }
 
-    class MockBPP2PSDK {
-      on = noop;
+      class MockBPP2PSDK {
+        on = noop;
+      }
+
+      class MockSeederSDK { }
+
+      defineReadonlyProperty(unsafeWindow, 'PCDNLoader', MockPCDNLoader);
+      defineReadonlyProperty(unsafeWindow, 'BPP2PSDK', MockBPP2PSDK);
+      defineReadonlyProperty(unsafeWindow, 'SeederSDK', MockSeederSDK);
     }
-
-    class MockSeederSDK { }
-
-    defineReadonlyProperty(unsafeWindow, 'PCDNLoader', MockPCDNLoader);
-    defineReadonlyProperty(unsafeWindow, 'BPP2PSDK', MockBPP2PSDK);
-    defineReadonlyProperty(unsafeWindow, 'SeederSDK', MockSeederSDK);
 
     // Patch new Native Player
     (function (HTMLMediaElementPrototypeSrcDescriptor) {
@@ -65,11 +71,15 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
           if (typeof value !== 'string') {
             value = String(value);
           }
-          try {
-            const result = replaceP2P(value, getCDNDomain, 'HTMLMediaElement.prototype.src');
-            value = typeof result === 'string' ? result : result.href;
-          } catch (e) {
-            logger.error('Failed to handle HTMLMediaElement.prototype.src setter', e, { value });
+          if (configManager.isEnabled(noP2P)) {
+            try {
+              const result = replaceP2P(value, getCDNDomain, 'HTMLMediaElement.prototype.src');
+              value = typeof result === 'string' ? result : result.href;
+            } catch (e) {
+              logger.error('Failed to handle HTMLMediaElement.prototype.src setter', e, { value });
+            }
+          } else if (isP2PCDN(value)) {
+            logger.warn('P2P request detected (allowed by config):', value);
           }
 
           HTMLMediaElementPrototypeSrcDescriptor?.set?.call(this, value);
@@ -78,14 +88,19 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
     }(Object.getOwnPropertyDescriptor(unsafeWindow.HTMLMediaElement.prototype, 'src')));
 
     onXhrOpen((xhrOpenArgs) => {
-      try {
-        xhrOpenArgs[1] = replaceP2P(
-          xhrOpenArgs[1],
-          getCDNDomain,
-          'XMLHttpRequest.prototype.open'
-        );
-      } catch (e) {
-        logger.error('Failed to replace P2P for XMLHttpRequest.prototype.open', e, { xhrUrl: xhrOpenArgs[1] });
+      const url = xhrOpenArgs[1];
+      if (configManager.isEnabled(noP2P)) {
+        try {
+          xhrOpenArgs[1] = replaceP2P(
+            url,
+            getCDNDomain,
+            'XMLHttpRequest.prototype.open'
+          );
+        } catch (e) {
+          logger.error('Failed to replace P2P for XMLHttpRequest.prototype.open', e, { xhrUrl: url });
+        }
+      } else if (typeof url === 'string' && isP2PCDN(url)) {
+        logger.warn('P2P request detected (allowed by config):', url);
       }
 
       return xhrOpenArgs;
@@ -102,7 +117,7 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
             if (typeof url === 'string' && !isP2PCDN(url)) {
               try {
                 cdnDomains.add(new URL(url).hostname);
-              } catch {}
+              } catch { }
             }
           }
           function extractCDNFromVideoOrAudio(data: unknown) {
@@ -135,7 +150,9 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
             }
           }
 
-          logger.info('Get CDN domains from Bilibili API', { json, cdnDomains });
+          if (configManager.isEnabled(noP2P)) {
+            logger.info('Get CDN domains from Bilibili API', { json, cdnDomains });
+          }
 
           if (cdnDomains.size > 0) {
             prevLocationHref = unsafeWindow.location.href;
@@ -149,16 +166,22 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
 
     onBeforeFetch((fetchArgs: [RequestInfo | URL, RequestInit?]) => {
       let input = fetchArgs[0];
-      if (typeof input === 'string' || 'href' in input) {
-        input = replaceP2P(input, getCDNDomain, 'fetch');
-      } else if ('url' in input) {
-        input = new Request(replaceP2P(input.url, getCDNDomain, 'fetch'), input);
-      } else {
-        const _: never = input;
-        // input = replaceP2P(String(input), cdnDomain);
-      }
+      const urlStr = typeof input === 'string' ? input : ('href' in input ? input.href : ('url' in input ? input.url : String(input)));
 
-      fetchArgs[0] = input;
+      if (configManager.isEnabled(noP2P)) {
+        if (typeof input === 'string' || 'href' in input) {
+          input = replaceP2P(input, getCDNDomain, 'fetch');
+        } else if ('url' in input) {
+          input = new Request(replaceP2P(input.url, getCDNDomain, 'fetch'), input);
+        } else {
+          const _: never = input;
+          // input = replaceP2P(String(input), cdnDomain);
+        }
+
+        fetchArgs[0] = input;
+      } else if (isP2PCDN(urlStr)) {
+        logger.warn('P2P request detected (allowed by config):', urlStr);
+      }
 
       return fetchArgs;
     });

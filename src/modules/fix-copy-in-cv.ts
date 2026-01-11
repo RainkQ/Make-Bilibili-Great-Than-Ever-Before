@@ -10,9 +10,11 @@ declare global {
 }
 
 const fixCopyInCV: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'fix-copy-in-cv',
   name: 'fix-copy-in-cv',
-  description: '修复文章复制功能',
-  onCV() {
+  defaultEnabled: true,
+  description: '修复专栏无法复制',
+  onCV: ({ addStyle }) => {
     if ('original' in unsafeWindow) {
       defineReadonlyProperty(unsafeWindow.original, 'reprint', '1');
     }

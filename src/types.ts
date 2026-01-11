@@ -1,6 +1,9 @@
 export interface MakeBilibiliGreatThanEverBeforeModule {
+  id: string,
   name: string,
   description: string,
+  defaultEnabled?: boolean,
+  alwaysRun?: boolean,
   any?: (hook: MakeBilibiliGreatThanEverBeforeHook) => void,
   onVideo?: (hook: MakeBilibiliGreatThanEverBeforeHook) => void,
   onLive?: (hook: MakeBilibiliGreatThanEverBeforeHook) => void,

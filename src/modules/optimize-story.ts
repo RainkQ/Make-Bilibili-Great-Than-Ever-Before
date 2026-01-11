@@ -3,9 +3,11 @@ import { tagged as css } from 'foxts/tagged';
 import { onLoaded } from '../utils/on-load-event';
 
 const optimizeStory: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'optimize-story',
   name: 'optimize-story',
-  description: '动态页面优化',
-  onStory({ addStyle }) {
+  defaultEnabled: true,
+  description: '优化动态',
+  onStory: ({ addStyle }) => {
     addStyle(css`
       html[wide] #app { display: flex; }
       html[wide] .bili-dyn-home--member { box-sizing: border-box;padding: 0 10px;width: 100%;flex: 1; }

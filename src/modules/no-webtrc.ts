@@ -2,6 +2,8 @@ import { noop } from 'foxts/noop';
 import type { Noop } from 'foxts/noop';
 import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
 import { defineReadonlyProperty } from '../utils/define-readonly-property';
+import { configManager } from '../utils/config-manager';
+import { logger } from '../logger';
 
 const neverResolvedPromise = new Promise(noop);
 const noopNeverResolvedPromise = () => neverResolvedPromise;
@@ -9,9 +11,31 @@ const noopNeverResolvedPromise = () => neverResolvedPromise;
 // based on uBlock Origin's no-webrtc
 // https://github.com/gorhill/uBlock/blob/6c228a8bfdcfc14140cdd3967270df28598c1aaf/src/js/resources/scriptlets.js#L2216
 const noWebRTC: MakeBilibiliGreatThanEverBeforeModule = {
-  name: 'no-webrtc',
-  description: '通过禁用 WebRTC 防止叔叔省下棺材钱',
-  any() {
+  id: 'no-webtrc',
+  name: 'no-webtrc',
+  defaultEnabled: false,
+  alwaysRun: true,
+  description: '防止叔叔用 WebRTC 省下纸钱',
+  any: ({ onlyCallOnce }) => {
+    if (!configManager.isEnabled(noWebRTC)) {
+      // Log only mode
+      const rtcNames = ['RTCPeerConnection', 'webkitRTCPeerConnection', 'mozRTCPeerConnection'];
+      for (const name of rtcNames) {
+        if (name in unsafeWindow) {
+          // @ts-ignore
+          const Original = unsafeWindow[name];
+          // @ts-ignore
+          unsafeWindow[name] = class extends Original {
+            constructor(...args: any[]) {
+              logger.warn(`WebRTC usage detected (allowed by config): ${name} constructed`);
+              super(...args);
+            }
+          };
+        }
+      }
+      return;
+    }
+    
     const rtcPcNames: string[] = [];
 
     if ('RTCPeerConnection' in unsafeWindow) {

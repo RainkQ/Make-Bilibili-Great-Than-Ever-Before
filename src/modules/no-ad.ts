@@ -13,9 +13,11 @@ declare global {
 }
 
 const noAd: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'no-ad',
   name: 'no-ad',
-  description: '防止叔叔通过广告给自己赚棺材钱',
-  any({ addStyle }) {
+  defaultEnabled: true,
+  description: '去除广告',
+  any: ({ addStyle, onResponse }) => {
     // 去广告
 
     /**

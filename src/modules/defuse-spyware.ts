@@ -12,9 +12,11 @@ const shouldDefuseUrl = createRetrieKeywordFilter([
 ]);
 
 const defuseSpyware: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'defuse-spyware',
   name: 'defuse-spyware',
-  description: '禁用叔叔日志上报和用户跟踪的无限请求风暴',
-  any({ onBeforeFetch, onXhrOpen }) {
+  defaultEnabled: true,
+  description: '防止叔叔的各种监测',
+  any: ({ onXhrOpen, onBeforeFetch }) => {
     defineReadonlyProperty(unsafeWindow.navigator, 'sendBeacon', trueFn);
 
     const SentryHub = createMockClass('SentryHub');

@@ -17,9 +17,10 @@ import type { MakeBilibiliGreatThanEverBeforeHook, MakeBilibiliGreatThanEverBefo
 import { onDOMContentLoaded } from './utils/on-load-event';
 import disableAV1 from './modules/disable-av1';
 import defuseStorage from './modules/defuse-storage';
+import { configManager } from './utils/config-manager';
 import forceEnable4K from './modules/force-enable-4k';
 
-; ((unsafeWindow) => {
+; (async (unsafeWindow) => {
   const modules: MakeBilibiliGreatThanEverBeforeModule[] = [
     defuseStorage,
     defuseSpyware,
@@ -37,6 +38,9 @@ import forceEnable4K from './modules/force-enable-4k';
     removeUselessUrlParams,
     useSystemFonts
   ];
+
+  await configManager.load();
+  configManager.registerMenuCommand(modules);
 
   const styles: string[] = [];
   const onBeforeFetchHooks = new Set<OnBeforeFetchHook>();
@@ -80,6 +84,9 @@ import forceEnable4K from './modules/force-enable-4k';
   const pathname = unsafeWindow.location.pathname;
 
   for (const module of modules) {
+    if (!configManager.isEnabled(module) && !module.alwaysRun) {
+      continue;
+    }
     if (module.any) {
       logger.log(`[${module.name}] "any" ${unsafeWindow.location.href}`);
       module.any(hook);

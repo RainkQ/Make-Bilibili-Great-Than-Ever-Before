@@ -16,9 +16,11 @@ const uselessUrlParams = [
 ];
 
 const removeUselessUrlParams: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'remove-useless-url-params',
   name: 'remove-useless-url-params',
-  description: '清理 URL 中的无用参数',
-  any() {
+  defaultEnabled: true,
+  description: '移除无用的 URL 参数',
+  any: ({ onlyCallOnce }) => {
     unsafeWindow.history.replaceState(undefined, '', removeTracking(location.href));
 
     // eslint-disable-next-line @typescript-eslint/unbound-method -- called with Reflect.apply

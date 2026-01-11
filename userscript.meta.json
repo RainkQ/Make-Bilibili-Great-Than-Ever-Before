@@ -3,7 +3,11 @@
   "namespace": "https://github.com/rainkq",
   "grant": [
     "unsafeWindow",
-    "GM.notification"
+    "GM.notification",
+    "GM.getValue",
+    "GM.setValue",
+    "GM.registerMenuCommand",
+    "GM.unregisterMenuCommand"
   ],
   "run-at": "document-start",
   "match": [
