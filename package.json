@@ -10,10 +10,10 @@
   "scripts": {
     "lint": "eslint --format=sukka .",
     "build": "rollup -c rollup.config.ts --configPlugin=swc3 --bundleConfigAsCjs",
-    "prerelease": "pnpm run lint && pnpm run build",
+    "prerelease": "bun run lint && bun run build",
     "release": "bumpp --all --commit \"release: v%s\" --tag \"v%s\" --push",
-    "postrelease": "gh release create v$(node -p \"require('./package.json').version\") dist/*.js --repo RainkQ/Make-Bilibili-Great-Than-Ever-Before --generate-notes",
-    "release:force": "git tag -d v$(node -p \"require('./package.json').version\") && git push --delete origin v$(node -p \"require('./package.json').version\") && pnpm run release"
+    "postrelease": "gh release create v$(bun -e \"console.log(require('./package.json').version)\") dist/*.js --repo RainkQ/Make-Bilibili-Great-Than-Ever-Before --generate-notes",
+    "release:force": "git tag -d v$(bun -e \"console.log(require('./package.json').version)\") && git push --delete origin v$(bun -e \"console.log(require('./package.json').version)\") && bun run release"
   },
   "keywords": [
     "userscript",
@@ -43,12 +43,5 @@
     "rollup-plugin-swc3": "^0.12.1",
     "rollup-plugin-userscript-metablock": "^0.4.3",
     "typescript": "^5.9.2"
-  },
-  "packageManager": "pnpm@10.15.1",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "unrs-resolver"
-    ]
   }
 }
