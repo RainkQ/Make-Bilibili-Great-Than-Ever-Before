@@ -16,8 +16,10 @@ const uselessUrlParams = [
 ];
 
 const removeUselessUrlParams: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'remove-useless-url-params',
   name: 'remove-useless-url-params',
-  description: '清理 URL 中的无用参数',
+  defaultEnabled: true,
+  description: '移除无用的 URL 参数',
   any() {
     unsafeWindow.history.replaceState(undefined, '', removeTracking(location.href));
 

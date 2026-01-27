@@ -26,11 +26,13 @@ function hook() {
 }
 
 const forceEnable4K: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'force-enable-4k',
   name: 'force-enable-4k',
-  description: '强制启用 4K 播放',
-  onVideo: hook,
-  onBangumi: hook,
-  onLive: hook
+  defaultEnabled: true,
+  description: '强制开启 4K',
+  any() {
+    hook();
+  }
 };
 
 export default forceEnable4K;

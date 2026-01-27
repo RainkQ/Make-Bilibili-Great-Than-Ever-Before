@@ -28,3 +28,4 @@ export const logger = {
   groupCollapsed: consoleGroupCollapsed.bind(console, '[make-bilibili-great-than-ever-before]'),
   groupEnd: consoleGroupEnd.bind(console)
 };
+/* eslint-enable no-restricted-globals -- logger */

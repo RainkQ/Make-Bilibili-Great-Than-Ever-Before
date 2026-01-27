@@ -2,8 +2,10 @@ import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
 import { tagged as css } from 'foxts/tagged';
 
 const optimizeHomepage: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'optimize-homepage',
   name: 'optimize-homepage',
-  description: '首页广告去除和样式优化',
+  defaultEnabled: true,
+  description: '优化首页',
   any({ addStyle }) {
     addStyle(css`
       .feed2 .feed-card:has(a[href*="cm.bilibili.com"]),

@@ -2,8 +2,10 @@ import { logger } from '../logger';
 import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
 
 const disableAV1: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'disable-av1',
   name: 'disable-av1',
-  description: '防止叔叔用 AV1 格式燃烧你的 CPU 并省下棺材钱',
+  defaultEnabled: true,
+  description: '防止叔叔强行喂 AV1 屎',
   any() {
     ((origCanPlayType) => {
       // eslint-disable-next-line sukka/class-prototype -- override native method

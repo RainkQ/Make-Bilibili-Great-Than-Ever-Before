@@ -2,7 +2,7 @@
   "name": "make-bilibili-great-than-ever-before",
   "version": "1.8.1",
   "description": "A fork of @kookxiang's userscript \"Make Bilibili Great Again\", but with many experimental features",
-  "repository": "https://github.com/SukkaW/Make-Bilibili-Great-Than-Ever-Before",
+  "repository": "https://github.com/rainkq/Make-Bilibili-Great-Than-Ever-Before",
   "main": "./dist/make-bilibili-great-than-ever-before.user.js",
   "files": [
     "dist"
@@ -11,13 +11,15 @@
     "lint": "eslint --format=sukka .",
     "build": "rollup -c rollup.config.ts --configPlugin=swc3 --bundleConfigAsCjs",
     "prerelease": "pnpm run lint && pnpm run build",
-    "release": "bumpp -r --all --commit \"release: %s\" --tag \"%s\""
+    "release": "bumpp --all --commit \"release: v%s\" --tag \"v%s\" --push",
+    "postrelease": "gh release create v$(node -e \"console.log(require('./package.json').version)\") dist/*.js --repo RainkQ/Make-Bilibili-Great-Than-Ever-Before --generate-notes",
+    "release:force": "git tag -d v$(node -e \"console.log(require('./package.json').version)\") && git push --delete origin v$(node -e \"console.log(require('./package.json').version)\") && pnpm run release"
   },
   "keywords": [
     "userscript",
     "bilibili"
   ],
-  "author": "SukkaW <https://skk.moe>",
+  "author": "rainkq",
   "license": "MIT",
   "dependencies": {
     "@types/tampermonkey": "^5.0.5",
@@ -41,15 +43,5 @@
     "rollup-plugin-swc3": "^0.12.1",
     "rollup-plugin-userscript-metablock": "^0.4.3",
     "typescript": "^5.9.3"
-  },
-  "packageManager": "pnpm@10.28.1",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@swc/core",
-      "unrs-resolver"
-    ],
-    "overrides": {
-      "eslint>chalk": "npm:ansis@^3.17.0"
-    }
   }
 }

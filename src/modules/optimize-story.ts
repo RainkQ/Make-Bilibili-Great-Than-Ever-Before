@@ -3,8 +3,10 @@ import { tagged as css } from 'foxts/tagged';
 import { onLoaded } from '../utils/on-load-event';
 
 const optimizeStory: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'optimize-story',
   name: 'optimize-story',
-  description: '动态页面优化',
+  defaultEnabled: true,
+  description: '优化动态',
   onStory({ addStyle }) {
     addStyle(css`
       html[wide] #app { display: flex; }

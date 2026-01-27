@@ -2,9 +2,11 @@ import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
 import { tagged as css } from 'foxts/tagged';
 
 const removeBlackBackdropFilter: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'remove-black-backdrop-filter',
   name: 'remove-black-backdrop-filter',
-  description: '去除叔叔去世时的全站黑白效果',
-  any({ addStyle }) {
+  defaultEnabled: true,
+  description: '移除黑色背景滤镜',
+  onVideo({ addStyle }) {
     addStyle(css`html, body { -webkit-filter: none !important; filter: none !important; }`);
   }
 };

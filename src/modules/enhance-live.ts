@@ -1,106 +1,110 @@
-import { logger } from '../logger';
 import type { MakeBilibiliGreatThanEverBeforeModule } from '../types';
-import { ErrorCounter } from '../utils/error-counter';
-import { getUrlFromRequest } from '../utils/get-url-from-request';
 import { tagged as css } from 'foxts/tagged';
-import flru from 'flru';
-import { createRetrieKeywordFilter } from 'foxts/retrie';
-
-declare global {
-  interface Window {
-    disableMcdn?: boolean
-  }
-}
-
-// const mcdnRegexp = /[\dxy]+\.mcdn\.bilivideo\.cn:\d+/;
-const qualityRegexp = /(live-bvc\/\d+\/live_\d+_\d+)_\w+/;
-const hevcRegexp = /(\d+)_(?:mini|pro)hevc/g;
-
-const smtcdnsRegexp = /[\w.]+\.smtcdns.net\/([\w-]+\.bilivideo.com\/)/;
-
-const liveCdnUrlKwFilter = createRetrieKeywordFilter([
-  '.bilivideo.',
-  '.m3u8',
-  '.m4s',
-  '.flv'
-]);
 
 const enhanceLive: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'enhance-live',
   name: 'enhance-live',
-  description: '增强直播（原画画质、其他修复）',
-  onLive({ addStyle, onBeforeFetch, onResponse }) {
-    let forceHighestQuality = true;
+  defaultEnabled: true,
+  description: '直播间画质优化',
+  onLive({ addStyle }) {
+    // from https://greasyfork.org/zh-CN/scripts/467427-bilibili-%E8%87%AA%E5%8A%A8%E5%88%87%E6%8D%A2%E7%9B%B4%E6%92%AD%E7%94%BB%E8%B4%A8%E8%87%B3%E6%9C%80%E9%AB%98%E7%94%BB%E8%B4%A8
+    (async () => {
+      'use strict';
 
-    const urlMap = flru<string>(300);
+      // jump to actual room if live streaming is nested
+      setInterval(() => {
+        const nestedPage = document.querySelector('iframe[src*=blanc]');
+        if (nestedPage) {
+          (unsafeWindow as Window).location.assign((nestedPage as HTMLIFrameElement).src);
+        }
+      }, 1000);
 
-    // 还得帮叔叔修 bug，唉
-    addStyle(css`div[data-cy=EvaRenderer_LayerWrapper]:has(.player) { z-index: 999999; }`);
+      // hide the loading gif
+      addStyle(css`.web-player-loading { opacity: 0; }`);
 
-    // 干掉些直播间没用的东西
-    addStyle(css`#welcome-area-bottom-vm, .web-player-icon-roomStatus { display: none !important; }`);
+      // make sure the player is ready
+      await new Promise<void>((resolve) => {
+        const timer = setInterval(() => {
+          if (
+            (unsafeWindow as any).livePlayer?.getPlayerInfo?.()?.playurl
+            && (unsafeWindow as any).livePlayer?.switchQuality
+          ) {
+            clearInterval(timer);
+            resolve();
+          }
+        }, 1000);
+      });
 
-    // 修复直播画质
-    onBeforeFetch((fetchArgs) => {
-      if (!forceHighestQuality) {
-        return fetchArgs;
-      }
+      let manualOverride = false;
+      let isScriptSwitch = false;
+      let lastUserInteraction = 0;
 
-      try {
-        const url = getUrlFromRequest(fetchArgs[0]);
-        if (url == null) {
-          return fetchArgs;
+      // wrap switchQuality and keep it wrapped even if player resets
+      const WRAPPED = Symbol('mbgteb-live-switch-wrapped');
+      const wrapLivePlayerSwitch = () => {
+        const livePlayer = (unsafeWindow as any).livePlayer;
+        if (!livePlayer?.switchQuality) return null as any;
+        if (livePlayer[WRAPPED]) return livePlayer;
+        const originalSwitchQuality = livePlayer.switchQuality.bind(livePlayer);
+        livePlayer.switchQuality = (qn: number) => {
+          if (!isScriptSwitch) {
+            manualOverride = true;
+          }
+          return originalSwitchQuality(qn);
+        };
+        // mark as wrapped and keep a back-reference for later calls
+        Object.defineProperty(livePlayer, WRAPPED, { value: true });
+        Object.defineProperty(livePlayer, '__mbgteb_originalSwitchQuality', { value: originalSwitchQuality });
+        return livePlayer;
+      };
+
+      // ensure wrapping at start
+      wrapLivePlayerSwitch();
+
+      // record user interactions in/around the player to infer manual operations
+      const markInteraction = () => { lastUserInteraction = Date.now(); };
+      const interactionEvents = ['pointerdown', 'mousedown', 'touchstart', 'keydown'];
+      interactionEvents.forEach((evt) => {
+        unsafeWindow.addEventListener(evt as any, (e) => {
+          try {
+            const target = e.target as Element | null;
+            if (!target) return;
+            // limit to events happening within the web player container to avoid false positives
+            const inPlayer = !!target.closest?.('.web-player,.player,.player-ctnr,.bilibili-live-player,.player-container');
+            if (inPlayer) markInteraction();
+          } catch {
+            // ignore
+          }
+        }, { capture: true, passive: true });
+      });
+
+      // periodically ensure highest quality only when not manually overridden
+      setInterval(() => {
+        const livePlayer = wrapLivePlayerSwitch() || (unsafeWindow as any).livePlayer;
+        const info = livePlayer?.getPlayerInfo?.();
+        if (!info?.playurl) return;
+
+        const highestQualityNumber: number | undefined = info.qualityCandidates?.[0]?.qn;
+        const currentQualityNumber: number | undefined = info.quality;
+
+        // if a recent user interaction occurred, treat as manual and stop auto override
+        if (!manualOverride && Date.now() - lastUserInteraction < 3000) {
+          manualOverride = true;
+          return;
         }
 
-        let finalUrl = url;
-        // if (mcdnRegexp.test(url) && disableMcdn) {
-        //   return Promise.reject();
-        // }
-        if (qualityRegexp.test(url)) {
-          finalUrl = url
-            .replace(qualityRegexp, '$1')
-            .replaceAll(hevcRegexp, '$1');
-
-          logger.info('force quality', url, '->', finalUrl);
-
-          urlMap.set(finalUrl, url);
+        if (!manualOverride && highestQualityNumber && currentQualityNumber !== highestQualityNumber) {
+          // use preserved original if available
+          const call = livePlayer.__mbgteb_originalSwitchQuality ?? livePlayer.switchQuality.bind(livePlayer);
+          isScriptSwitch = true;
+          try {
+            call(highestQualityNumber);
+          } finally {
+            isScriptSwitch = false;
+          }
         }
-        if (smtcdnsRegexp.test(finalUrl)) {
-          finalUrl = finalUrl.replace(smtcdnsRegexp, '$1');
-          logger.info('drop smtcdns', url, '->', finalUrl);
-        }
-
-        fetchArgs[0] = finalUrl;
-        return fetchArgs;
-      } catch {
-        return fetchArgs;
-      }
-    });
-
-    const errorCounter = new ErrorCounter(1000 * 30);
-
-    onResponse((resp, fetchArgs, $fetch) => {
-      if (liveCdnUrlKwFilter(resp.url) && !resp.ok) {
-        logger.error('force quality fail', resp.url, resp.status);
-        errorCounter.recordError();
-
-        if (forceHighestQuality && errorCounter.getErrorCount() >= 5) {
-          forceHighestQuality = false;
-          logger.error('Force quality failed! Falling back');
-          GM.notification(
-            '[Make Bilibili Great Then Ever Before] 已为您自动切换至播放器上选择的清晰度.',
-            '最高清晰度可能不可用'
-          );
-        }
-
-        // If we have old url, we fetch old quality again
-        if (urlMap.has(resp.url)) {
-          const oldUrl = urlMap.get(resp.url)!;
-          logger.warn('');
-          return $fetch(oldUrl, fetchArgs[1]);
-        }
-      }
-      return resp;
-    });
+      }, 1000);
+    })();
   }
 };
 
