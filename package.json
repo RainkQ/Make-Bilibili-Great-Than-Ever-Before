@@ -13,7 +13,8 @@
     "prerelease": "pnpm run lint && pnpm run build",
     "release": "bumpp patch --all --commit \"release: v%s\" --tag \"v%s\" --push --no-confirm",
     "postrelease": "node scripts/release.js",
-    "release:force": "git tag -d v$(node -e \"console.log(require('./package.json').version)\") && git push --delete origin v$(node -e \"console.log(require('./package.json').version)\") && pnpm run release"
+    "release:force": "git tag -d v$(node -e \"console.log(require('./package.json').version)\") && git push --delete origin v$(node -e \"console.log(require('./package.json').version)\") && pnpm run release",
+    "rerelease": "node scripts/rerelease.js"
   },
   "keywords": [
     "userscript",
