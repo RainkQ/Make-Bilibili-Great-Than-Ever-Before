@@ -17,5 +17,8 @@ module.exports = require('eslint-config-sukka').sukka(
       'n/prefer-global/process': 'off',
       'sukka/prefer-timer-id': 'off'
     }
+  },
+  {
+    ignores: ['scripts/']
   }
 );

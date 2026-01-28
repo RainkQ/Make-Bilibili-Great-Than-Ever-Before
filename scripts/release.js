@@ -1,4 +1,4 @@
-const { execSync } = require('child_process');
+const { execSync } = require('node:child_process');
 const { version } = require('../package.json');
 
 const tagName = `v${version}`;
@@ -8,7 +8,7 @@ try {
   console.log(`Executing: ${command}`);
   execSync(command, { stdio: 'inherit' });
   console.log(`Successfully created GitHub release for tag ${tagName}`);
-} catch (error) {
+} catch {
   console.error(`Failed to create GitHub release for tag ${tagName}.`);
   // The error from execSync will be printed to stderr because of 'inherit'
   process.exit(1);
