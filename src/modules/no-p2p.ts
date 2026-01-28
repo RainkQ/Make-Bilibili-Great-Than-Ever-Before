@@ -34,9 +34,16 @@ function isObject(value: unknown): value is object {
 }
 
 const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
+  id: 'no-p2p',
   name: 'no-p2p',
   description: '防止叔叔用 P2P CDN 省下纸钱',
+  defaultEnabled: false,
   any({ onXhrOpen, onBeforeFetch, onXhrResponse }) {
+    if (unsafeWindow.location.hostname === 'live.bilibili.com') {
+      logger.info('[no-p2p] disabled on live pages to avoid issues.');
+      return;
+    }
+
     class MockPCDNLoader { }
 
     class MockBPP2PSDK {
@@ -103,7 +110,7 @@ const noP2P: MakeBilibiliGreatThanEverBeforeModule = {
           HTMLMediaElementPrototypeSrcDescriptor?.set?.call(this, value);
         }
       });
-    })(Object.getOwnPropertyDescriptor(unsafeWindow.HTMLMediaElement.prototype, 'src'));
+    }(Object.getOwnPropertyDescriptor(unsafeWindow.HTMLMediaElement.prototype, 'src')));
 
     onXhrOpen((xhrOpenArgs) => {
       const xhrUrl = xhrOpenArgs[1];

@@ -150,7 +150,7 @@ import { initModuleMenu } from './utils/module-menu';
   (($fetch) => {
     unsafeWindow.fetch = async function (...$fetchArgs) {
       let abortFetch = false;
-      // eslint-disable-next-line no-useless-assignment -- the assignment can be skipped if doBeforeFetch throws an error
+
       let fetchArgs: typeof $fetchArgs | null | Response = $fetchArgs;
       let mockResponse: Response | null = null;
       for (const onBeforeFetch of onBeforeFetchHooks) {
