@@ -1,4 +1,5 @@
-name: Automatic Publish
+name: Build and Lint
+
 on:
   push:
     branches:
@@ -12,36 +13,30 @@ on:
       - .editorconfig
       - docs/**
   pull_request: null
+
 jobs:
-  publish:
-    name: Publish
+  build:
+    name: Build and Lint
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-      - uses: actions/setup-node@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version-file: '.node-version'
           check-latest: true
-          registry-url: 'https://registry.npmjs.org'
-      - run: bun install
-      - run: bun run build
-      - name: Publish
-        run: |
-          if git log -1 --pretty=%B | grep "^release: [0-9]\+\.[0-9]\+\.[0-9]\+$";
-          then
-            npm publish --provenance --access public
-          elif git log -1 --pretty=%B | grep "^release: [0-9]\+\.[0-9]\+\.[0-9]\+";
-          then
-            npm publish --provenance --access public --tag next
-          else
-            echo "Not a release, skipping publish"
-          fi
-        env:
-          NPM_CONFIG_PROVENANCE: true
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+        
+      - name: Lint
+        run: pnpm run lint

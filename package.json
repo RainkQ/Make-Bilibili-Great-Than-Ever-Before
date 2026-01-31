@@ -14,7 +14,9 @@
     "release": "bumpp patch --all --commit \"release: v%s\" --tag \"v%s\" --push --no-confirm",
     "postrelease": "node scripts/release.js",
     "release:force": "git tag -d v$(node -e \"console.log(require('./package.json').version)\") && git push --delete origin v$(node -e \"console.log(require('./package.json').version)\") && pnpm run release",
-    "rerelease": "node scripts/rerelease.js"
+    "rerelease": "node scripts/rerelease.js",
+    "release:manual": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1",
+    "release:manual:force": "powershell -ExecutionPolicy Bypass -File ./scripts/release.ps1 -Force"
   },
   "keywords": [
     "userscript",
@@ -22,6 +24,7 @@
   ],
   "author": "rainkq",
   "license": "MIT",
+  "packageManager": "pnpm@10.26.1",
   "dependencies": {
     "@types/tampermonkey": "^5.0.5",
     "fake-indexeddb": "^6.2.5",
